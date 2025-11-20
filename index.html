@@ -1,138 +1,153 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>LIFF Share Customer Flex</title>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+  <title>LIFF Share Customer Flex</title>
 </head>
 <body>
-    <h1>กำลังเตรียมข้อความสำหรับแชร์...</h1>
-    <p>กรุณารอสักครู่...</p>
-    <p id="debug-info" style="color: red; font-weight: bold;"></p>
-    
-    <script src="https://static.line-scdn.net/liff/edge/versions/2.5.0/sdk.js"></script>
+  <h1>กำลังเตรียมข้อความสำหรับแชร์...</h1>
+  <p>หากไม่เกิดอะไรขึ้น โปรดตรวจสอบ Console (F12) หรือเปิดผ่านแอป LINE อีกครั้ง</p>
 
-    <script>
-        // *** 1. ต้องเปลี่ยน URL นี้เป็น Deployment URL ของ GAS Web App ใหม่ของคุณ ***
-        // (ใช้ค่าเดียวกับ SCRIPT_URL ใน GAS: https://script.google.com/macros/s/AKfycbzw-BwFE-x8dEZISByHhs_cXnfylkZj14Xfbv0_kETUsIT2Zv4l0G3j3OOrZ0Lo2V1VPw/exec)
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzw-BwFE-x8dEZISByHhs_cXnfylkZj14Xfbv0_kETUsIT2Zv4l0G3j3OOrZ0Lo2V1VPw/exec';
-        
-        // 2. LIFF ID (ต้องตรงกับที่ใช้ในปุ่ม "แชร์ให้ลูกค้า")
-        const LIFF_ID = "1657584857-p5EZEl5O";
+  <!-- LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-        // ฟังก์ชันสำหรับแยก Query Parameter จาก URL
-        function getQueryParams() {
-            var params = {};
-            var query = window.location.search.substring(1);
-            var vars = query.split('&');
-            for (var i = 0; i < vars.length; i++) {
-                var pair = vars[i].split('=');
-                params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
-            }
-            return params;
+  <script>
+    // ---------------- Helper: ดึง Query Params ----------------
+    function getQueryParams() {
+      var params = {};
+      var query = window.location.search.substring(1);
+      if (!query) return params;
+
+      var vars = query.split('&');
+      for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split('=');
+        var key = decodeURIComponent(pair[0] || '');
+        var value = decodeURIComponent(pair[1] || '');
+        if (key) params[key] = value;
+      }
+      return params;
+    }
+
+    async function main() {
+      try {
+        // 1) init LIFF
+        await liff.init({ liffId: "1657584857-p5EZEl5O" });
+
+        // 2) ต้องใช้ในแอป LINE เท่านั้น
+        if (!liff.isInClient()) {
+          alert("ฟีเจอร์แชร์นี้ต้องเปิดผ่านแอป LINE เท่านั้น");
+          return;
         }
 
-        async function main() {
-            let orderId = '';
-            try {
-                // 1. เริ่มต้น LIFF
-                await liff.init({ liffId: LIFF_ID });
-
-                // 2. ดึงค่า orderId ที่ส่งมาใน URL เท่านั้น
-                var params = getQueryParams();
-                orderId = params.orderId || '';
-
-                document.getElementById('debug-info').innerText = `Order ID ที่รับได้: ${orderId}`;
-                
-                if (!orderId) {
-                    alert('Error: ไม่พบ Order ID ใน URL');
-                    liff.closeWindow();
-                    return;
-                }
-
-                // 3. ดึงข้อมูลคำสั่งซื้อทั้งหมดจาก GAS Web App (Server-Side)
-                const fetchUrl = `${GAS_WEB_APP_URL}?action=getOrderInfo&orderId=${orderId}`;
-                document.getElementById('debug-info').innerText = `กำลังดึงข้อมูลจาก Server...`;
-
-                const response = await fetch(fetchUrl);
-                const info = await response.json(); // ข้อมูลคำสั่งซื้อทั้งหมดจากชีท
-
-                if (info.error) {
-                    throw new Error(info.error);
-                }
-                if (!info || !info.name || !info.imagesFolderUrl) {
-                     throw new Error('ข้อมูลคำสั่งซื้อไม่สมบูรณ์');
-                }
-                
-                // *** นำข้อมูลที่ได้จาก Server มาใช้ ***
-                var name = info.name;
-                var folderUrl = info.imagesFolderUrl;
-                var safePkg = info.packageName || 'ไม่ระบุ';
-                var safePrice = info.price || '-';
-                
-                // 4. สร้าง Flex Message JSON สำหรับ 'ลูกค้า'
-                var customerShareFlex = {
-                    "type": "flex",
-                    "altText": "🎁 คำสั่งซื้อสำเร็จ: " + name,
-                    "contents": {
-                        "type": "bubble",
-                        "size": "mega",
-                        "body": {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                { "type": "text", "text": "✅ ข้อมูลสำหรับลูกค้า!", "weight": "bold", "size": "xl", "color": "#2E7D32" },
-                                { "type": "separator", "margin": "md" },
-                                { "type": "text", "text": "Order ID: " + orderId, "size": "sm", "wrap": true },
-                                { "type": "text", "text": "คุณ: " + name, "size": "sm", "wrap": true },
-                                { "type": "text", "text": "แพ็กเกจ: " + safePkg, "size": "sm", "wrap": true },
-                                { "type": "text", "text": "ราคา: " + safePrice + " บาท", "size": "sm", "wrap": true },
-                                { "type": "separator", "margin": "md" },
-                                { "type": "text", "text": "กดปุ่มด้านล่างเพื่อรับไฟล์ของคุณได้เลยค่ะ", "size": "md", "wrap": true, "margin": "md" }
-                            ]
-                        },
-                        "footer": {
-                            "type": "box",
-                            "layout": "vertical",
-                            "spacing": "sm",
-                            "contents": [
-                                {
-                                    "type": "button",
-                                    "style": "primary",
-                                    "color": "#2E7D32",
-                                    "action": {
-                                        "type": "uri",
-                                        "label": "📥 รับไฟล์รูปภาพ/วิดีโอ",
-                                        "uri": folderUrl
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                };
-
-                // 5. เรียกใช้ Share Target Picker เพื่อให้ผู้ใช้เลือกผู้รับ
-                document.getElementById('debug-info').innerText = `กำลังเปิดหน้าแชร์...`;
-                const success = await liff.shareTargetPicker([customerShareFlex]);
-
-                // 6. แจ้งผล
-                if (success) {
-                    alert("แชร์สำเร็จแล้ว!");
-                } else {
-                    alert("ยกเลิกการแชร์ หรือแชร์ไม่สำเร็จ");
-                }
-                
-            } catch (error) {
-                console.error("LIFF/Fetch Error:", error);
-                document.getElementById('debug-info').innerText = `Error: ${error.message}. Order ID: ${orderId}`;
-                alert("❌ เกิดข้อผิดพลาดในการดึงข้อมูลหรือการทำงาน: " + error.message);
-            }
-            
-            // ปิดหน้าต่าง LIFF เสมอเมื่อจบการทำงาน
-            liff.closeWindow();
+        // 3) ตรวจว่ามี shareTargetPicker ให้ใช้ไหม
+        if (!liff.isApiAvailable('shareTargetPicker')) {
+          alert("อุปกรณ์นี้ไม่รองรับฟังก์ชัน Share Target Picker");
+          return;
         }
 
-        main();
-    </script>
+        // 4) ถ้ายังไม่ login ให้ login ก่อน (กันเคสเปิดจาก in-app browser อื่นในอนาคต)
+        if (!liff.isLoggedIn()) {
+          liff.login({ redirectUri: window.location.href });
+          return; // รอ reload กลับมา
+        }
+
+        // 5) ดึงค่า query parameter
+        var params = getQueryParams();
+        var orderId  = params.orderId  || '';
+        var name     = params.name     || '';
+        var folderUrl = params.folderUrl || '';
+
+        // เช็กว่าข้อมูลจำเป็นครบไหม
+        if (!orderId || !name || !folderUrl) {
+          alert('ไม่พบข้อมูลคำสั่งซื้อที่จำเป็น (orderId / name / folderUrl)');
+          return;
+        }
+
+        // 6) สร้าง Flex Message สำหรับแชร์ให้ลูกค้า
+        var customerShareFlex = {
+          "type": "flex",
+          "altText": "🎁 คำสั่งซื้อสำเร็จ: " + name,
+          "contents": {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "✅ ข้อมูลสำหรับลูกค้า!",
+                  "weight": "bold",
+                  "size": "xl",
+                  "color": "#2E7D32"
+                },
+                { "type": "separator", "margin": "md" },
+                {
+                  "type": "text",
+                  "text": "Order ID: " + orderId,
+                  "size": "sm",
+                  "wrap": true
+                },
+                {
+                  "type": "text",
+                  "text": "คุณ: " + name,
+                  "size": "sm",
+                  "wrap": true
+                },
+                { "type": "separator", "margin": "md" },
+                {
+                  "type": "text",
+                  "text": "กดปุ่มด้านล่างเพื่อรับไฟล์ของคุณได้เลยค่ะ",
+                  "size": "md",
+                  "wrap": true,
+                  "margin": "md"
+                }
+              ]
+            },
+            "footer": {
+              "type": "box",
+              "layout": "vertical",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "button",
+                  "style": "primary",
+                  "color": "#2E7D32",
+                  "action": {
+                    "type": "uri",
+                    "label": "📥 รับไฟล์รูปภาพ/วิดีโอ",
+                    "uri": folderUrl
+                  }
+                }
+              ]
+            }
+          }
+        };
+
+        // 7) เปิด Share Target Picker ให้เลือกห้อง/เพื่อน
+        const result = await liff.shareTargetPicker([customerShareFlex]);
+
+        // ถ้าแชร์สำเร็จ result จะเป็น object ถ้ายกเลิกจะเป็น null
+        if (result) {
+          alert("แชร์สำเร็จแล้ว!");
+        } else {
+          alert("ยกเลิกการแชร์ หรือแชร์ไม่สำเร็จ");
+        }
+
+      } catch (error) {
+        console.error("LIFF Error:", error);
+        alert("เกิดข้อผิดพลาดในการทำงานของ LIFF: " + (error.message || error));
+      } finally {
+        // ปิดหน้าต่างเมื่อจบการทำงาน (ไม่ว่าจะสำเร็จหรือไม่)
+        if (typeof liff !== "undefined" && liff.closeWindow) {
+          liff.closeWindow();
+        }
+      }
+    }
+
+    main();
+  </script>
 </body>
 </html>
