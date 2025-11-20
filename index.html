@@ -16,7 +16,7 @@
         // ⭐ 1. CONFIG
         const LIFF_ID = "1657584857-p5EZEl5O";
         // *** 2. ต้องเปลี่ยน URL นี้เป็น Deployment URL ของ GAS Web App ที่มี handleGetOrderInfo_ ***
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxNXbuJT3c67Bpn6Bt7IdGkvUx7nc2vrDnaWItTDE9InCpGFotHFnjWNv0BYfhO8aAAPA/exec'; 
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzkUhxjiTtEpHWPgrU5fyl1_plrcx4U7hzwKzCAEqQiSJb8sF_EOSqWIRBH7cPvfkchPw/exec'; 
 
         // ฟังก์ชันสำหรับแยก Query Parameter จาก URL
         function getQueryParams() {
@@ -50,8 +50,16 @@
 
                 // 3. เรียก GAS Server เพื่อดึงข้อมูลคำสั่งซื้อทั้งหมด
                 const fetchUrl = `${GAS_WEB_APP_URL}?action=getOrderInfo&orderId=${orderId}`;
+                // ใน function main() ในไฟล์ index.html
                 const response = await fetch(fetchUrl);
-                const info = await response.json(); // ข้อมูลคำสั่งซื้อทั้งหมดจากชีท
+
+                if (!response.ok) {
+                 // หาก HTTP Status code ไม่ใช่ 200 (เช่น 404, 500)
+                       const errorText = await response.text(); 
+                       throw new Error(`GAS API Error: HTTP ${response.status} - ${errorText.substring(0, 50)}...`);
+                }
+
+                const info = await response.json(); 
 
                 if (info.error) {
                     throw new Error(info.error);
