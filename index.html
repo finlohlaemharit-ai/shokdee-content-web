@@ -19,16 +19,37 @@
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzkUhxjiTtEpHWPgrU5fyl1_plrcx4U7hzwKzCAEqQiSJb8sF_EOSqWIRBH7cPvfkchPw/exec'; 
 
         // ฟังก์ชันสำหรับแยก Query Parameter จาก URL
+       // ในไฟล์ index.html ของคุณ
         function getQueryParams() {
             var params = {};
-            var query = window.location.search.substring(1);
+    // ตรวจสอบ Query String หลัก
+            var query = window.location.search.substring(1); 
+    
+    // ⭐ NEW: ตรวจสอบและดึงค่าจาก liff.state
+            var liffStateMatch = query.match(/liff\.state=([^&]*)/);
+                if (liffStateMatch) {
+        // ถอดรหัสค่าของ liff.state (ซึ่งจะถอดได้เป็น ?orderId=...)
+            var liffStateQuery = decodeURIComponent(liffStateMatch[1]);
+        
+        // ลบอักขระ ? ตัวแรกออก แล้วต่อเข้ากับ query string หลัก
+            if (liffStateQuery.startsWith('?')) {
+                query += '&' + liffStateQuery.substring(1);
+                }
+            }
+
+    // ประมวลผล Query String ทั้งหมด
             var vars = query.split('&');
             for (var i = 0; i < vars.length; i++) {
                 var pair = vars[i].split('=');
+                // ตรวจสอบว่ามี Key และ Value
+            if (pair[0] && pair[1]) { 
                 params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+                }
             }
-            return params;
+        return params;
         }
+
+// ... ส่วน main() ยังคงใช้ var params = getQueryParams(); เหมือนเดิม
 
         async function main() {
             let orderId = '';
